@@ -6,10 +6,12 @@ class EventTapManager {
     private var runLoopSource: CFRunLoopSource?
     fileprivate let configManager: ConfigManager
     private let textInserter: TextInserter
+    private let notificationManager: NotificationManager
     
     init(configManager: ConfigManager) {
         self.configManager = configManager
         self.textInserter = TextInserter()
+        self.notificationManager = NotificationManager(configManager: configManager)
         setupEventTap()
     }
     
@@ -40,29 +42,27 @@ class EventTapManager {
     func insertCharacter(at index: Int) {
         guard index < configManager.characters.count else { return }
         let character = configManager.characters[index]
-        let text = configManager.format == .stage 
-            ? "\(character.name.uppercased()): "
-            : "\n\n          \(character.name.uppercased())\n    "
+        let text = configManager.getCharacterDialogueText(character)
         textInserter.insertText(text)
+        notificationManager.notifyInserted(configManager.localized("characterDialogue") + ": \(character.name)")
     }
     
     func insertSceneHeading() {
-        let text = configManager.format == .stage
-            ? "[SCENE: Location - Time]\n"
-            : "\n\nINT. LOCATION - TIME OF DAY\n\n"
+        let text = configManager.getSceneHeadingText()
         textInserter.insertText(text)
+        notificationManager.notifyInserted(configManager.localized("sceneHeading"))
     }
     
     func insertActionLine() {
-        let prefix = configManager.format == .stage ? "▲ " : ""
-        textInserter.insertText("\n\(prefix)[Action description]\n")
+        let text = configManager.getActionLineText()
+        textInserter.insertText(text)
+        notificationManager.notifyInserted(configManager.localized("actionLine"))
     }
     
     func insertParenthetical() {
-        let text = configManager.format == .stage
-            ? "(emotion/action) "
-            : "\n          (emotion/action)\n    "
+        let text = configManager.getParentheticalText()
         textInserter.insertText(text)
+        notificationManager.notifyInserted(configManager.localized("parenthetical"))
     }
     
     deinit {
@@ -107,20 +107,22 @@ private func eventTapCallback(
         23: 5, 24: 6, 25: 7, 26: 8
     ]
     
-    // Modifier+Shift+H (keycode 4) — Scene
-    if isShiftPressed && keyCode == 4 {
+    let shortcuts = manager.configManager.shortcuts
+    
+    // Modifier+Shift+SceneHeadingKey
+    if isShiftPressed && keyCode == shortcuts.sceneHeadingKey {
         manager.insertSceneHeading()
         return nil
     }
     
-    // Modifier+Shift+A (keycode 0) — Action
-    if isShiftPressed && keyCode == 0 {
+    // Modifier+Shift+ActionLineKey
+    if isShiftPressed && keyCode == shortcuts.actionLineKey {
         manager.insertActionLine()
         return nil
     }
     
-    // Modifier+Shift+P (keycode 35) — Parenthetical
-    if isShiftPressed && keyCode == 35 {
+    // Modifier+Shift+ParentheticalKey
+    if isShiftPressed && keyCode == shortcuts.parentheticalKey {
         manager.insertParenthetical()
         return nil
     }
