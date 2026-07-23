@@ -21,10 +21,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         
         configManager = ConfigManager()
-        eventTapManager = EventTapManager(configManager: configManager)
         
         setupMenuBar()
-        checkPermissions()
+        
+        // Only create event tap if we have accessibility permission
+        if AXIsProcessTrusted() {
+            eventTapManager = EventTapManager(configManager: configManager)
+        } else {
+            showPermissionAlert()
+        }
     }
     
     func setupMenuBar() {
@@ -99,19 +104,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     @objc func insertCharacter(_ sender: NSMenuItem) {
         guard let index = sender.representedObject as? Int else { return }
-        eventTapManager.insertCharacter(at: index)
+        eventTapManager?.insertCharacter(at: index)
     }
     
     @objc func insertScene() {
-        eventTapManager.insertSceneHeading()
+        eventTapManager?.insertSceneHeading()
     }
     
     @objc func insertAction() {
-        eventTapManager.insertActionLine()
+        eventTapManager?.insertActionLine()
     }
     
     @objc func insertParenthetical() {
-        eventTapManager.insertParenthetical()
+        eventTapManager?.insertParenthetical()
     }
     
     @objc func openSettings() {
@@ -132,15 +137,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func checkPermissions() {
-        // Check Input Monitoring
-        let inputMonitoring = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
-        
         // Check Accessibility
         let accessibility = AXIsProcessTrustedWithOptions(
             [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         )
         
-        if !inputMonitoring || !accessibility {
+        if !accessibility {
             showPermissionAlert()
         }
     }

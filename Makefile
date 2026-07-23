@@ -20,6 +20,7 @@ app: build
 	@mkdir -p "$(APP_BUNDLE)/Contents/Resources"
 	@cp "$(RELEASE_DIR)/$(APP_NAME)" "$(APP_BUNDLE)/Contents/MacOS/"
 	@cp Info.plist "$(APP_BUNDLE)/Contents/"
+	@codesign --force --deep --sign - "$(APP_BUNDLE)"
 	@echo "Created $(APP_BUNDLE)"
 
 # Build and run
