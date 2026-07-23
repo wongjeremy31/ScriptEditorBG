@@ -13,6 +13,24 @@ enum ScriptFormat: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum ModifierKey: String, Codable, CaseIterable, Identifiable {
+    case command = "command"
+    case option = "option"
+    case control = "control"
+    case shift = "shift"
+    
+    var id: String { rawValue }
+    
+    var cgEventFlags: CGEventFlags {
+        switch self {
+        case .command: return .maskCommand
+        case .option: return .maskAlternate
+        case .control: return .maskControl
+        case .shift: return .maskShift
+        }
+    }
+}
+
 struct ScriptCharacter: Identifiable, Codable, Equatable {
     let id: UUID
     var name: String
@@ -30,6 +48,7 @@ class ConfigManager: ObservableObject {
         ScriptCharacter(name: "Narrator")
     ]
     @Published var format: ScriptFormat = .stage
+    @Published var modifierKey: ModifierKey = .command
     
     private let configURL: URL
     
@@ -49,10 +68,15 @@ class ConfigManager: ObservableObject {
         }
         self.characters = config.characters
         self.format = config.format
+        self.modifierKey = config.modifierKey
     }
     
     func saveConfig() {
-        let config = Config(characters: characters, format: format)
+        let config = Config(
+            characters: characters,
+            format: format,
+            modifierKey: modifierKey
+        )
         if let data = try? JSONEncoder().encode(config) {
             try? data.write(to: configURL)
         }
@@ -80,4 +104,5 @@ class ConfigManager: ObservableObject {
 struct Config: Codable {
     var characters: [ScriptCharacter]
     var format: ScriptFormat
+    var modifierKey: ModifierKey
 }

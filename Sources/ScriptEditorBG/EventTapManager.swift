@@ -14,7 +14,6 @@ class EventTapManager {
     }
     
     private func setupEventTap() {
-        // Create event tap for key down events
         let eventMask = (1 << CGEventType.keyDown.rawValue)
         
         guard let tap = CGEvent.tapCreate(
@@ -91,47 +90,45 @@ private func eventTapCallback(
     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
     let flags = event.flags
     
-    // Check if Command is pressed
-    let isCommandPressed = flags.contains(.maskCommand)
-    let isShiftPressed = flags.contains(.maskShift)
-    
-    guard isCommandPressed else {
-        return Unmanaged.passRetained(event)
-    }
-    
-    // Get the manager from refcon
     guard let refcon = refcon else { return Unmanaged.passRetained(event) }
     let manager = Unmanaged<EventTapManager>.fromOpaque(refcon).takeUnretainedValue()
     
-    // Map key codes to numbers (1-9)
-    // Key codes: 18=1, 19=2, 20=3, 21=4, 22=5, 23=6, 24=7, 25=8, 26=9
+    let configModifier = manager.configManager.modifierKey.cgEventFlags
+    let isModifierPressed = flags.contains(configModifier)
+    let isShiftPressed = flags.contains(.maskShift)
+    
+    guard isModifierPressed else {
+        return Unmanaged.passRetained(event)
+    }
+    
+    // Number keys: 18=1, 19=2, 20=3, 21=4, 22=5, 23=6, 24=7, 25=8, 26=9
     let numberKeyCodes: [Int64: Int] = [
         18: 0, 19: 1, 20: 2, 21: 3, 22: 4,
         23: 5, 24: 6, 25: 7, 26: 8
     ]
     
-    // Cmd+Shift+H (keycode 4)
+    // Modifier+Shift+H (keycode 4) — Scene
     if isShiftPressed && keyCode == 4 {
         manager.insertSceneHeading()
-        return nil // Consume event
+        return nil
     }
     
-    // Cmd+Shift+A (keycode 0)
+    // Modifier+Shift+A (keycode 0) — Action
     if isShiftPressed && keyCode == 0 {
         manager.insertActionLine()
-        return nil // Consume event
+        return nil
     }
     
-    // Cmd+Shift+P (keycode 35)
+    // Modifier+Shift+P (keycode 35) — Parenthetical
     if isShiftPressed && keyCode == 35 {
         manager.insertParenthetical()
-        return nil // Consume event
+        return nil
     }
     
-    // Cmd+1, Cmd+2, etc.
-    if let charIndex = numberKeyCodes[keyCode] {
+    // Modifier+1, Modifier+2, etc. — Characters
+    if !isShiftPressed, let charIndex = numberKeyCodes[keyCode] {
         manager.insertCharacter(at: charIndex)
-        return nil // Consume event
+        return nil
     }
     
     return Unmanaged.passRetained(event)

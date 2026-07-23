@@ -1,14 +1,26 @@
 import SwiftUI
+import Carbon
 
 struct SettingsView: View {
     @ObservedObject var configManager: ConfigManager
     @State private var newCharacterName: String = ""
+    @State private var recordingShortcut: String? = nil
     
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
+            // Header
+            HStack {
+                Text("🎭 Script Editor")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                Spacer()
+            }
+            
+            Divider()
+            
             // Format Selection
             VStack(alignment: .leading, spacing: 10) {
-                Text("Format")
+                Text("Script Format")
                     .font(.headline)
                 
                 Picker("Format", selection: $configManager.format) {
@@ -23,35 +35,54 @@ struct SettingsView: View {
             
             Divider()
             
-            // Characters List
+            // Shortcuts Section
             VStack(alignment: .leading, spacing: 10) {
-                Text("Characters")
-                    .font(.headline)
+                HStack {
+                    Text("Keyboard Shortcuts")
+                        .font(.headline)
+                    Spacer()
+                    Text("Global — work in any app")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
                 
-                Text("Shortcuts: Cmd+1, Cmd+2, Cmd+3...")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                // Modifier key selector
+                HStack {
+                    Text("Modifier:")
+                    Picker("Modifier", selection: $configManager.modifierKey) {
+                        Text("⌘ Command").tag(ModifierKey.command)
+                        Text("⌥ Option").tag(ModifierKey.option)
+                        Text("⌃ Control").tag(ModifierKey.control)
+                        Text("⇧ Shift").tag(ModifierKey.shift)
+                    }
+                    .pickerStyle(.segmented)
+                    .onChange(of: configManager.modifierKey) { _ in
+                        configManager.saveConfig()
+                    }
+                }
                 
-                List {
-                    ForEach(configManager.characters) { character in
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(Array(configManager.characters.enumerated()), id: \.element.id) { index, character in
                         HStack {
-                            Text("⌘\(configManager.characters.firstIndex(where: { $0.id == character.id })! + 1)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .frame(width: 30)
+                            Text("\(modifierSymbol(configManager.modifierKey))\(index + 1)")
+                                .font(.system(.body, design: .monospaced))
+                                .frame(width: 50, alignment: .leading)
                             
                             Text(character.name)
                             
                             Spacer()
+                            
+                            Button("×") {
+                                configManager.removeCharacter(at: IndexSet([index]))
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .foregroundColor(.red)
                         }
                     }
-                    .onDelete { indexSet in
-                        configManager.removeCharacter(at: indexSet)
-                    }
                 }
-                .frame(height: 150)
+                .padding(.vertical, 4)
                 
-                // Add new character
+                // Add character
                 HStack {
                     TextField("New character name", text: $newCharacterName)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -68,63 +99,86 @@ struct SettingsView: View {
             
             Divider()
             
-            // Shortcuts Reference
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Global Shortcuts")
+            // Quick Actions
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Quick Actions")
                     .font(.headline)
                 
-                VStack(alignment: .leading, spacing: 5) {
-                    ShortcutRow(keys: "⌘1, ⌘2...", action: "Insert character")
-                    ShortcutRow(keys: "⌘⇧H", action: "Scene heading")
-                    ShortcutRow(keys: "⌘⇧A", action: "Action line (▲)")
-                    ShortcutRow(keys: "⌘⇧P", action: "Parenthetical")
+                HStack {
+                    Text("\(modifierSymbol(configManager.modifierKey))⇧H")
+                        .font(.system(.body, design: .monospaced))
+                        .frame(width: 60, alignment: .leading)
+                    Text("Scene Heading")
+                    Spacer()
+                }
+                
+                HStack {
+                    Text("\(modifierSymbol(configManager.modifierKey))⇧A")
+                        .font(.system(.body, design: .monospaced))
+                        .frame(width: 60, alignment: .leading)
+                    Text("Action Line (▲)")
+                    Spacer()
+                }
+                
+                HStack {
+                    Text("\(modifierSymbol(configManager.modifierKey))⇧P")
+                        .font(.system(.body, design: .monospaced))
+                        .frame(width: 60, alignment: .leading)
+                    Text("Parenthetical")
+                    Spacer()
                 }
             }
             
             Spacer()
             
-            // Permissions Status
-            VStack(alignment: .leading, spacing: 5) {
+            // Permissions
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Permissions")
                     .font(.headline)
                 
                 HStack {
                     Image(systemName: AXIsProcessTrusted() ? "checkmark.circle.fill" : "xmark.circle.fill")
                         .foregroundColor(AXIsProcessTrusted() ? .green : .red)
-                    Text("Accessibility: \(AXIsProcessTrusted() ? "Granted" : "Required")")
+                    Text("Accessibility: \(AXIsProcessTrusted() ? "Granted ✓" : "Required — click to fix")")
+                    Spacer()
                 }
                 
                 if !AXIsProcessTrusted() {
-                    Button("Open System Preferences") {
+                    Button("Open System Preferences → Privacy → Accessibility") {
                         NSWorkspace.shared.open(
                             URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
                         )
                     }
                 }
+                
+                Text("The app needs Accessibility permission to insert text into other apps.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Divider()
+            
+            // Instructions
+            VStack(alignment: .leading, spacing: 4) {
+                Text("How to use:")
+                    .font(.headline)
+                Text("1. The 🎭 icon should appear in your menu bar (top right)")
+                Text("2. Press shortcuts while in any app (Google Docs, Pages, etc.)")
+                Text("3. Text will be inserted at your cursor position")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
         }
         .padding()
-        .frame(width: 500, height: 600)
+        .frame(width: 480, height: 600)
     }
-}
-
-struct ShortcutRow: View {
-    let keys: String
-    let action: String
     
-    var body: some View {
-        HStack {
-            Text(keys)
-                .font(.system(.body, design: .monospaced))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 2)
-                .background(Color.secondary.opacity(0.2))
-                .cornerRadius(4)
-            
-            Text(action)
-                .foregroundColor(.secondary)
-            
-            Spacer()
+    func modifierSymbol(_ modifier: ModifierKey) -> String {
+        switch modifier {
+        case .command: return "⌘"
+        case .option: return "⌥"
+        case .control: return "⌃"
+        case .shift: return "⇧"
         }
     }
 }
