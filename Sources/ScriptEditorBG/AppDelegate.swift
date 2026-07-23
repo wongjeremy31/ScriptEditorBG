@@ -28,7 +28,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func setupMenuBar() {
-        statusItem = NSStatusBar.shared.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem = NSStatusBar().statusItem(withLength: NSStatusItem.variableLength)
         
         if let button = statusItem.button {
             button.title = "🎭"
@@ -136,7 +136,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let inputMonitoring = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
         
         // Check Accessibility
-        let accessibility = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt: true] as CFDictionary)
+        let accessibility = AXIsProcessTrustedWithOptions(
+            [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        )
         
         if !inputMonitoring || !accessibility {
             showPermissionAlert()

@@ -128,7 +128,3 @@ struct ShortcutRow: View {
         }
     }
 }
-
-#Preview {
-    SettingsView(configManager: ConfigManager())
-}
