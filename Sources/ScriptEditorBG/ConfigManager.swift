@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 
 enum ScriptFormat: String, Codable, CaseIterable, Identifiable {
     case stage = "stage"

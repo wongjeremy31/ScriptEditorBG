@@ -4,7 +4,7 @@ import Carbon
 class EventTapManager {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
-    private let configManager: ConfigManager
+    fileprivate let configManager: ConfigManager
     private let textInserter: TextInserter
     
     init(configManager: ConfigManager) {
