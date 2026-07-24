@@ -60,6 +60,45 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: configManager.localized("menuTitle"), action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         
+        // Word Count
+        let wordCountItem = NSMenuItem(
+            title: "\(configManager.localized("wordCount")): \(configManager.todayWordCount) \(configManager.localized("words"))",
+            action: nil,
+            keyEquivalent: ""
+        )
+        wordCountItem.isEnabled = false
+        menu.addItem(wordCountItem)
+        menu.addItem(NSMenuItem.separator())
+        
+        // Profiles
+        if !configManager.profiles.isEmpty {
+            let profileItem = NSMenuItem(title: configManager.localized("profiles"), action: nil, keyEquivalent: "")
+            profileItem.isEnabled = false
+            menu.addItem(profileItem)
+            
+            // Default profile option
+            let defaultItem = NSMenuItem(
+                title: "  \(configManager.activeProfileId == nil ? "✓ " : "")\(configManager.localized("defaultProfile"))",
+                action: #selector(switchToProfile(_:)),
+                keyEquivalent: ""
+            )
+            defaultItem.target = self
+            menu.addItem(defaultItem)
+            
+            for profile in configManager.profiles {
+                let isActive = configManager.activeProfileId == profile.id
+                let item = NSMenuItem(
+                    title: "  \(isActive ? "✓ " : "")\(profile.name)",
+                    action: #selector(switchToProfile(_:)),
+                    keyEquivalent: ""
+                )
+                item.representedObject = profile.id
+                item.target = self
+                menu.addItem(item)
+            }
+            menu.addItem(NSMenuItem.separator())
+        }
+        
         // Character shortcuts info
         let charactersItem = NSMenuItem(title: configManager.localized("characters"), action: nil, keyEquivalent: "")
         charactersItem.isEnabled = false
@@ -77,6 +116,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         
         menu.addItem(NSMenuItem.separator())
+        
+        // Scene Templates
+        if !configManager.sceneTemplates.isEmpty {
+            let templateItem = NSMenuItem(title: configManager.localized("sceneTemplates"), action: nil, keyEquivalent: "")
+            templateItem.isEnabled = false
+            menu.addItem(templateItem)
+            
+            for template in configManager.sceneTemplates {
+                let item = NSMenuItem(
+                    title: "  \(configManager.modifierKey.symbol)⇧\(keyCodeToLetter(template.keyCode)) \(template.name)",
+                    action: #selector(insertSceneTemplate(_:)),
+                    keyEquivalent: ""
+                )
+                item.representedObject = template.id
+                item.target = self
+                menu.addItem(item)
+            }
+            menu.addItem(NSMenuItem.separator())
+        }
         
         // Quick actions
         let sceneKey = keyCodeToLetter(configManager.shortcuts.sceneHeadingKey)
@@ -102,6 +160,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         menu.addItem(NSMenuItem.separator())
         
+        // Recent History
+        if !configManager.recentHistory.isEmpty {
+            let historyItem = NSMenuItem(title: configManager.localized("recentHistory"), action: nil, keyEquivalent: "")
+            historyItem.isEnabled = false
+            menu.addItem(historyItem)
+            
+            for item in configManager.recentHistory.prefix(5) {
+                let displayText = item.text.count > 30 ? String(item.text.prefix(30)) + "..." : item.text
+                let menuItem = NSMenuItem(
+                    title: "  \(displayText)",
+                    action: #selector(insertFromHistory(_:)),
+                    keyEquivalent: ""
+                )
+                menuItem.representedObject = item.text
+                menuItem.target = self
+                menu.addItem(menuItem)
+            }
+            menu.addItem(NSMenuItem.separator())
+        }
+        
         // Settings
         menu.addItem(NSMenuItem(
             title: configManager.localized("openSettings"),
@@ -125,7 +203,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             0: "A", 1: "S", 2: "D", 3: "F", 4: "H",
             5: "G", 6: "Z", 7: "X", 8: "C", 9: "V",
             11: "B", 12: "Q", 13: "W", 14: "E", 15: "R",
-            16: "Y", 17: "T", 32: "U", 34: "I", 31: "O",
+            16: "Y", 17: "T", 18: "1", 19: "2", 20: "3",
+            21: "4", 22: "5", 23: "6", 24: "7", 25: "8",
+            26: "9", 32: "U", 34: "I", 31: "O",
             35: "P", 37: "L", 38: "J", 39: "K", 40: "N",
             41: "M"
         ]
@@ -135,18 +215,45 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func insertCharacter(_ sender: NSMenuItem) {
         guard let index = sender.representedObject as? Int else { return }
         eventTapManager?.insertCharacter(at: index)
+        refreshMenu() // Update word count
     }
     
     @objc func insertScene() {
         eventTapManager?.insertSceneHeading()
+        refreshMenu()
     }
     
     @objc func insertAction() {
         eventTapManager?.insertActionLine()
+        refreshMenu()
     }
     
     @objc func insertParenthetical() {
         eventTapManager?.insertParenthetical()
+        refreshMenu()
+    }
+    
+    @objc func insertSceneTemplate(_ sender: NSMenuItem) {
+        guard let templateId = sender.representedObject as? UUID else { return }
+        eventTapManager?.insertSceneTemplate(templateId: templateId)
+        refreshMenu()
+    }
+    
+    @objc func insertFromHistory(_ sender: NSMenuItem) {
+        guard let text = sender.representedObject as? String else { return }
+        eventTapManager?.insertText(text)
+        refreshMenu()
+    }
+    
+    @objc func switchToProfile(_ sender: NSMenuItem) {
+        if let profileId = sender.representedObject as? UUID {
+            configManager.switchToProfile(profileId)
+        } else {
+            // Switch to default (no profile)
+            configManager.activeProfileId = nil
+            configManager.saveConfig()
+        }
+        setupMenuBar()
     }
     
     @objc func openSettings() {
@@ -157,7 +264,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 700),
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 800),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false

@@ -43,26 +43,47 @@ class EventTapManager {
         guard index < configManager.characters.count else { return }
         let character = configManager.characters[index]
         let text = configManager.getCharacterDialogueText(character)
-        textInserter.insertText(text)
+        insertText(text)
+        configManager.addToHistory(text: text, type: .character)
         notificationManager.notifyInserted(configManager.localized("characterDialogue") + ": \(character.name)")
     }
     
     func insertSceneHeading() {
         let text = configManager.getSceneHeadingText()
-        textInserter.insertText(text)
+        insertText(text)
+        configManager.addToHistory(text: text, type: .sceneHeading)
         notificationManager.notifyInserted(configManager.localized("sceneHeading"))
     }
     
     func insertActionLine() {
         let text = configManager.getActionLineText()
-        textInserter.insertText(text)
+        insertText(text)
+        configManager.addToHistory(text: text, type: .actionLine)
         notificationManager.notifyInserted(configManager.localized("actionLine"))
     }
     
     func insertParenthetical() {
         let text = configManager.getParentheticalText()
-        textInserter.insertText(text)
+        insertText(text)
+        configManager.addToHistory(text: text, type: .parenthetical)
         notificationManager.notifyInserted(configManager.localized("parenthetical"))
+    }
+    
+    func insertSceneTemplate(templateId: UUID) {
+        guard let template = configManager.sceneTemplates.first(where: { $0.id == templateId }) else { return }
+        insertText(template.text)
+        configManager.addToHistory(text: template.text, type: .sceneTemplate)
+        notificationManager.notifyInserted(configManager.localized("template") + ": \(template.name)")
+    }
+    
+    func insertText(_ text: String) {
+        textInserter.insertText(text)
+        configManager.addWordCount(text.count)
+        
+        // Post notification to refresh menu bar word count
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .init("refreshMenu"), object: nil)
+        }
     }
     
     deinit {
@@ -108,6 +129,16 @@ private func eventTapCallback(
     ]
     
     let shortcuts = manager.configManager.shortcuts
+    
+    // Check scene templates first (Modifier+Shift+template key)
+    if isShiftPressed {
+        for template in manager.configManager.sceneTemplates {
+            if keyCode == template.keyCode {
+                manager.insertSceneTemplate(templateId: template.id)
+                return nil
+            }
+        }
+    }
     
     // Modifier+Shift+SceneHeadingKey
     if isShiftPressed && keyCode == shortcuts.sceneHeadingKey {

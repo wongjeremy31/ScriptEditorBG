@@ -64,8 +64,38 @@ struct ScriptCharacter: Identifiable, Codable, Equatable {
     }
 }
 
+struct SceneTemplate: Identifiable, Codable, Equatable {
+    let id: UUID
+    var name: String
+    var text: String
+    var keyCode: Int64
+    
+    init(id: UUID = UUID(), name: String, text: String, keyCode: Int64) {
+        self.id = id
+        self.name = name
+        self.text = text
+        self.keyCode = keyCode
+    }
+}
+
+struct Profile: Identifiable, Codable, Equatable {
+    let id: UUID
+    var name: String
+    var characters: [ScriptCharacter]
+    var sceneTemplates: [SceneTemplate]
+    var format: ScriptFormat
+    
+    init(id: UUID = UUID(), name: String, characters: [ScriptCharacter], sceneTemplates: [SceneTemplate], format: ScriptFormat) {
+        self.id = id
+        self.name = name
+        self.characters = characters
+        self.sceneTemplates = sceneTemplates
+        self.format = format
+    }
+}
+
 struct ShortcutConfig: Codable, Equatable {
-    var sceneHeadingKey: Int64    // keycode
+    var sceneHeadingKey: Int64
     var actionLineKey: Int64
     var parentheticalKey: Int64
     
@@ -76,19 +106,52 @@ struct ShortcutConfig: Codable, Equatable {
     )
 }
 
+struct RecentItem: Identifiable, Codable, Equatable {
+    let id: UUID
+    let text: String
+    let timestamp: Date
+    let type: RecentItemType
+    
+    init(id: UUID = UUID(), text: String, type: RecentItemType) {
+        self.id = id
+        self.text = text
+        self.timestamp = Date()
+        self.type = type
+    }
+}
+
+enum RecentItemType: String, Codable {
+    case character
+    case sceneHeading
+    case actionLine
+    case parenthetical
+    case sceneTemplate
+}
+
+struct WordCountEntry: Codable, Equatable {
+    let date: String  // YYYY-MM-DD
+    var count: Int
+}
+
 class ConfigManager: ObservableObject {
     @Published var characters: [ScriptCharacter] = [
         ScriptCharacter(name: "Jeremy"),
         ScriptCharacter(name: "Alice"),
         ScriptCharacter(name: "Narrator")
     ]
+    @Published var sceneTemplates: [SceneTemplate] = []
+    @Published var profiles: [Profile] = []
+    @Published var activeProfileId: UUID?
     @Published var format: ScriptFormat = .stage
     @Published var modifierKey: ModifierKey = .command
     @Published var language: AppLanguage = .traditionalChinese
     @Published var shortcuts: ShortcutConfig = .default
     @Published var showNotifications: Bool = true
+    @Published var recentHistory: [RecentItem] = []
+    @Published var wordCounts: [String: Int] = [:]  // date string -> count
     
     private let configURL: URL
+    private let maxHistoryItems = 10
     
     init() {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -96,7 +159,46 @@ class ConfigManager: ObservableObject {
         try? FileManager.default.createDirectory(at: appFolder, withIntermediateDirectories: true)
         self.configURL = appFolder.appendingPathComponent("config.json")
         
+        // Setup default templates
+        sceneTemplates = getDefaultSceneTemplates()
+        
         loadConfig()
+    }
+    
+    private func getDefaultSceneTemplates() -> [SceneTemplate] {
+        return [
+            SceneTemplate(name: "內景日景", text: "【場景：內景 - 日景】\n", keyCode: 18), // 1
+            SceneTemplate(name: "外景日景", text: "【場景：外景 - 日景】\n", keyCode: 19), // 2
+            SceneTemplate(name: "內景夜景", text: "【場景：內景 - 夜景】\n", keyCode: 20), // 3
+            SceneTemplate(name: "外景夜景", text: "【場景：外景 - 夜景】\n", keyCode: 21), // 4
+            SceneTemplate(name: "黑場", text: "【黑場】\n", keyCode: 22)  // 5
+        ]
+    }
+    
+    var todayWordCount: Int {
+        let today = currentDateString()
+        return wordCounts[today] ?? 0
+    }
+    
+    func addWordCount(_ count: Int) {
+        let today = currentDateString()
+        wordCounts[today, default: 0] += count
+        saveConfig()
+    }
+    
+    private func currentDateString() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: Date())
+    }
+    
+    func addToHistory(text: String, type: RecentItemType) {
+        let item = RecentItem(text: text, type: type)
+        recentHistory.insert(item, at: 0)
+        if recentHistory.count > maxHistoryItems {
+            recentHistory.removeLast()
+        }
+        saveConfig()
     }
     
     func localized(_ key: String) -> String {
@@ -140,7 +242,16 @@ class ConfigManager: ObservableObject {
         "showNotifications": "Show Notifications",
         "language": "Language",
         "notificationSuccess": "Inserted successfully",
-        "sceneHeadingLong": "INT. LOCATION - TIME OF DAY"
+        "sceneHeadingLong": "INT. LOCATION - TIME OF DAY",
+        "profiles": "Profiles",
+        "sceneTemplates": "Scene Templates",
+        "newProfile": "New Profile",
+        "defaultProfile": "Default",
+        "recentHistory": "Recent History",
+        "wordCount": "Today's Words",
+        "words": "words",
+        "noRecent": "No recent items",
+        "template": "Template"
     ]
     
     var chineseStrings: [String: String] = [
@@ -175,7 +286,16 @@ class ConfigManager: ObservableObject {
         "showNotifications": "顯示通知",
         "language": "語言",
         "notificationSuccess": "插入成功",
-        "sceneHeadingLong": "內景．地點 - 時間"
+        "sceneHeadingLong": "內景．地點 - 時間",
+        "profiles": "專案設定檔",
+        "sceneTemplates": "場景範本",
+        "newProfile": "新增專案",
+        "defaultProfile": "預設",
+        "recentHistory": "最近使用",
+        "wordCount": "今日字數",
+        "words": "字",
+        "noRecent": "暫無記錄",
+        "template": "範本"
     ]
     
     func loadConfig() {
@@ -189,6 +309,11 @@ class ConfigManager: ObservableObject {
         self.language = config.language
         self.shortcuts = config.shortcuts
         self.showNotifications = config.showNotifications
+        self.sceneTemplates = config.sceneTemplates
+        self.profiles = config.profiles
+        self.activeProfileId = config.activeProfileId
+        self.recentHistory = config.recentHistory
+        self.wordCounts = config.wordCounts
     }
     
     func saveConfig() {
@@ -198,7 +323,12 @@ class ConfigManager: ObservableObject {
             modifierKey: modifierKey,
             language: language,
             shortcuts: shortcuts,
-            showNotifications: showNotifications
+            showNotifications: showNotifications,
+            sceneTemplates: sceneTemplates,
+            profiles: profiles,
+            activeProfileId: activeProfileId,
+            recentHistory: recentHistory,
+            wordCounts: wordCounts
         )
         if let data = try? JSONEncoder().encode(config) {
             try? data.write(to: configURL)
@@ -221,6 +351,55 @@ class ConfigManager: ObservableObject {
             characters[index].name = name
             saveConfig()
         }
+    }
+    
+    func addSceneTemplate(name: String, text: String, keyCode: Int64) {
+        let template = SceneTemplate(name: name, text: text, keyCode: keyCode)
+        sceneTemplates.append(template)
+        saveConfig()
+    }
+    
+    func removeSceneTemplate(at indexSet: IndexSet) {
+        sceneTemplates.remove(atOffsets: indexSet)
+        saveConfig()
+    }
+    
+    func addProfile(name: String) {
+        let profile = Profile(
+            name: name,
+            characters: [
+                ScriptCharacter(name: "Jeremy"),
+                ScriptCharacter(name: "Alice")
+            ],
+            sceneTemplates: getDefaultSceneTemplates(),
+            format: .stage
+        )
+        profiles.append(profile)
+        saveConfig()
+    }
+    
+    func switchToProfile(_ profileId: UUID) {
+        // Save current state to previous profile
+        if let currentId = activeProfileId,
+           let currentIndex = profiles.firstIndex(where: { $0.id == currentId }) {
+            profiles[currentIndex].characters = characters
+            profiles[currentIndex].sceneTemplates = sceneTemplates
+            profiles[currentIndex].format = format
+        }
+        
+        // Load new profile
+        if let newIndex = profiles.firstIndex(where: { $0.id == profileId }) {
+            characters = profiles[newIndex].characters
+            sceneTemplates = profiles[newIndex].sceneTemplates
+            format = profiles[newIndex].format
+            activeProfileId = profileId
+            saveConfig()
+        }
+    }
+    
+    func deleteProfile(at indexSet: IndexSet) {
+        profiles.remove(atOffsets: indexSet)
+        saveConfig()
     }
     
     func getSceneHeadingText() -> String {
@@ -260,4 +439,9 @@ struct Config: Codable {
     var language: AppLanguage
     var shortcuts: ShortcutConfig
     var showNotifications: Bool
+    var sceneTemplates: [SceneTemplate]
+    var profiles: [Profile]
+    var activeProfileId: UUID?
+    var recentHistory: [RecentItem]
+    var wordCounts: [String: Int]
 }
