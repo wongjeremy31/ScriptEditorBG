@@ -391,7 +391,7 @@ struct SettingsView: View {
             .padding()
             .frame(width: 560)
         }
-        .frame(height: 700)
+        .frame(height: 800)
     }
     
     func keyCodeToLetter(_ keyCode: Int64) -> String {
