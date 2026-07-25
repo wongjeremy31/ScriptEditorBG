@@ -25,11 +25,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         setupMenuBar()
         
-        // Only create event tap if we have accessibility permission
-        if AXIsProcessTrusted() {
-            eventTapManager = EventTapManager(configManager: configManager)
-        } else {
-            showPermissionAlert()
+        // Create event tap if permission available, or start polling
+        tryCreateEventTap()
+        
+        // Poll every 3 seconds to check if permission was granted while app is running
+        Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+            self.tryCreateEventTap()
         }
         
         // Observe language changes to refresh menu
@@ -64,6 +65,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     @objc func refreshMenu() {
         setupMenuBar()
+    }
+    
+    private func tryCreateEventTap() {
+        // Only create if not already created and permission is granted
+        guard eventTapManager == nil, AXIsProcessTrusted() else { return }
+        
+        print("[ScriptEditorBG] Accessibility permission granted, creating event tap...")
+        eventTapManager = EventTapManager(configManager: configManager)
+        
+        // Update menu bar to show active status
+        DispatchQueue.main.async {
+            if let button = self.statusItem.button {
+                button.title = "🎭"
+            }
+        }
+        print("[ScriptEditorBG] Event tap created successfully. Shortcuts active.")
     }
     
     func setupMenuBar() {

@@ -18,6 +18,8 @@ class EventTapManager {
     private func setupEventTap() {
         let eventMask = (1 << CGEventType.keyDown.rawValue)
         
+        print("[ScriptEditorBG] Setting up event tap...")
+        
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
@@ -26,7 +28,7 @@ class EventTapManager {
             callback: eventTapCallback,
             userInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
         ) else {
-            print("Failed to create event tap. Check Input Monitoring permission.")
+            print("[ScriptEditorBG] ❌ Failed to create event tap. Check Accessibility + Input Monitoring permissions.")
             return
         }
         
@@ -37,6 +39,8 @@ class EventTapManager {
         
         CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
+        
+        print("[ScriptEditorBG] ✅ Event tap active. Modifier: \(configManager.modifierKey.symbol), waiting for shortcuts...")
     }
     
     func insertCharacter(at index: Int) {
@@ -121,6 +125,9 @@ private func eventTapCallback(
     guard isModifierPressed else {
         return Unmanaged.passRetained(event)
     }
+    
+    // Debug: log captured key presses (helps diagnose shortcut issues)
+    print("[ScriptEditorBG] Key captured: keyCode=\(keyCode), modifier=\(manager.configManager.modifierKey.symbol) pressed, shift=\(isShiftPressed)")
     
     // Number keys: 18=1, 19=2, 20=3, 21=4, 22=5, 23=6, 24=7, 25=8, 26=9
     let numberKeyCodes: [Int64: Int] = [

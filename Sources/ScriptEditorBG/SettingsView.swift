@@ -356,6 +356,30 @@ struct SettingsView: View {
                             .padding(.top, 4)
                     }
                     
+                    // Test button
+                    Button(configManager.language == .traditionalChinese ? "🧪 測試插入文字（點擊後切換到其他 app 的輸入框）" : "🧪 Test Text Insertion (click, then switch to another app's text field)") {
+                        NSBeep()
+                        // Post notification that AppDelegate listens to
+                        NotificationCenter.default.post(
+                            name: .init("showInsertionFeedback"),
+                            object: nil,
+                            userInfo: ["text": "TEST"]
+                        )
+                    }
+                    .padding(.top, 8)
+                    
+                    Text(configManager.language == .traditionalChinese 
+                        ? "如果測試冇反應：確保你點擊後 3 秒內切換到另一個 app（如 Pages、Notes）的輸入框。"
+                        : "If test has no response: make sure you switch to another app's text field (e.g. Pages, Notes) within 3 seconds after clicking.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Text(configManager.language == .traditionalChinese 
+                        ? "如果測試成功但快捷鍵冇反應：請檢查終端機 (Terminal) 嘅輸出，確認快捷鍵有冇被捕捉。"
+                        : "If test works but shortcuts don't: check Terminal output to see if key presses are being captured.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
                     Text(configManager.language == .traditionalChinese ? "此應用程式需要輔助使用權限才能在其他應用程式中插入文字。" : "The app needs Accessibility permission to insert text into other apps.")
                         .font(.caption)
                         .foregroundColor(.secondary)
