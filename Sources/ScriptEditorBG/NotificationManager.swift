@@ -1,5 +1,5 @@
 import Foundation
-import UserNotifications
+import AppKit
 
 class NotificationManager: NSObject {
     private let configManager: ConfigManager
@@ -7,38 +7,22 @@ class NotificationManager: NSObject {
     init(configManager: ConfigManager) {
         self.configManager = configManager
         super.init()
-        requestAuthorization()
-    }
-    
-    private func requestAuthorization() {
-        let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .sound]) { granted, error in
-            if let error = error {
-                print("Notification authorization error: \(error)")
-            }
-        }
     }
     
     func notifyInserted(_ content: String) {
         guard configManager.showNotifications else { return }
         
-        let center = UNUserNotificationCenter.current()
+        // For LSUIElement apps, UNUserNotificationCenter often fails.
+        // Use NSBeep + a brief status bar flash as fallback.
+        NSBeep()
         
-        let notificationContent = UNMutableNotificationContent()
-        notificationContent.title = configManager.localized("notificationSuccess")
-        notificationContent.body = content
-        notificationContent.sound = .default
-        
-        let request = UNNotificationRequest(
-            identifier: UUID().uuidString,
-            content: notificationContent,
-            trigger: nil
-        )
-        
-        center.add(request) { error in
-            if let error = error {
-                print("Failed to show notification: \(error)")
-            }
+        // Post a notification that AppDelegate can listen to for status bar feedback
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: .init("showInsertionFeedback"),
+                object: nil,
+                userInfo: ["text": content]
+            )
         }
     }
 }

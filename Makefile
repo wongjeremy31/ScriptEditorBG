@@ -19,9 +19,12 @@ app: build
 	@mkdir -p "$(APP_BUNDLE)/Contents/MacOS"
 	@mkdir -p "$(APP_BUNDLE)/Contents/Resources"
 	@cp "$(RELEASE_DIR)/$(APP_NAME)" "$(APP_BUNDLE)/Contents/MacOS/"
+	@chmod +x "$(APP_BUNDLE)/Contents/MacOS/$(APP_NAME)"
 	@cp Info.plist "$(APP_BUNDLE)/Contents/"
 	@codesign --force --deep --sign - "$(APP_BUNDLE)"
+	@xattr -d com.apple.quarantine "$(APP_BUNDLE)" 2>/dev/null || true
 	@echo "Created $(APP_BUNDLE)"
+	@echo "If double-click doesn't work, run: ./fix_permissions.sh"
 
 # Build and run
 run: build

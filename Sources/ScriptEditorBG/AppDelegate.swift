@@ -39,6 +39,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             name: .init("refreshMenu"),
             object: nil
         )
+        
+        // Observe insertion feedback (replaces unreliable UNUserNotificationCenter)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(showInsertionFeedback(_:)),
+            name: .init("showInsertionFeedback"),
+            object: nil
+        )
+    }
+    
+    @objc func showInsertionFeedback(_ notification: Notification) {
+        guard let text = notification.userInfo?["text"] as? String else { return }
+        
+        // Briefly flash a checkmark in the menu bar
+        if let button = statusItem.button {
+            let originalTitle = button.title
+            button.title = "✅"
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                button.title = originalTitle
+            }
+        }
     }
     
     @objc func refreshMenu() {
