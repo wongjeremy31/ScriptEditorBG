@@ -1,5 +1,6 @@
 import SwiftUI
 import Carbon
+import AudioToolbox
 
 struct SettingsView: View {
     @ObservedObject var configManager: ConfigManager
@@ -358,7 +359,7 @@ struct SettingsView: View {
                     
                     // Test button
                     Button(configManager.language == .traditionalChinese ? "🧪 測試插入文字（點擊後切換到其他 app 的輸入框）" : "🧪 Test Text Insertion (click, then switch to another app's text field)") {
-                        NSBeep()
+                        AudioServicesPlaySystemSound(1104)
                         // Post notification that AppDelegate listens to
                         NotificationCenter.default.post(
                             name: .init("showInsertionFeedback"),
