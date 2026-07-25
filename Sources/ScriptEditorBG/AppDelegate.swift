@@ -50,7 +50,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc func showInsertionFeedback(_ notification: Notification) {
-        guard let text = notification.userInfo?["text"] as? String else { return }
+        guard notification.userInfo?["text"] != nil else { return }
         
         // Briefly flash a checkmark in the menu bar
         if let button = statusItem.button {

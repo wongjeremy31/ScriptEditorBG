@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import AudioToolbox
 
 class NotificationManager: NSObject {
     private let configManager: ConfigManager
@@ -12,11 +13,10 @@ class NotificationManager: NSObject {
     func notifyInserted(_ content: String) {
         guard configManager.showNotifications else { return }
         
-        // For LSUIElement apps, UNUserNotificationCenter often fails.
-        // Use NSBeep + a brief status bar flash as fallback.
-        NSBeep()
+        // Play system alert sound (UNUserNotificationCenter doesn't work reliably for LSUIElement apps)
+        AudioServicesPlaySystemSound(1104) // SMS received sound
         
-        // Post a notification that AppDelegate can listen to for status bar feedback
+        // Post notification for visual feedback (menu bar checkmark flash)
         DispatchQueue.main.async {
             NotificationCenter.default.post(
                 name: .init("showInsertionFeedback"),
