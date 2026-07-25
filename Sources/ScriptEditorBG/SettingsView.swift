@@ -347,6 +347,13 @@ struct SettingsView: View {
                                 URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
                             )
                         }
+                        
+                        Text(configManager.language == .traditionalChinese 
+                            ? "💡 如果你已經授權但仲係顯示紅色：每次重新編譯 (make app) 都會改變程式的簽名，macOS 會當佢係新程式。請先取消舊授權，再重新授權。"
+                            : "💡 If already authorized but still shows red: each rebuild (make app) changes the code signature. macOS treats it as a new app. Please remove the old entry and re-authorize.")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                            .padding(.top, 4)
                     }
                     
                     Text(configManager.language == .traditionalChinese ? "此應用程式需要輔助使用權限才能在其他應用程式中插入文字。" : "The app needs Accessibility permission to insert text into other apps.")
